@@ -1,8 +1,6 @@
 package com._1zko.hacknovahackathon26backend.controller;
 
-import com._1zko.hacknovahackathon26backend.repo.UserDetails;
 import com._1zko.hacknovahackathon26backend.service.UserService;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
