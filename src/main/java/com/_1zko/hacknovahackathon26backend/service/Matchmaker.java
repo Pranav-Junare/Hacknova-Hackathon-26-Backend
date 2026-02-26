@@ -64,7 +64,7 @@ public class Matchmaker {
         Map<String,String>p2payload = new HashMap<>(payload);
         p2payload.put("opponent",p1);
 
-        messagingTemplate.convertAndSend("/match/"+p1,p1payload);
-        messagingTemplate.convertAndSend("/match/"+p2,p2payload);
+        messagingTemplate.convertAndSend("/room/match/"+p1,p1payload);
+        messagingTemplate.convertAndSend("/room/match/"+p2,p2payload);
     }
 }
