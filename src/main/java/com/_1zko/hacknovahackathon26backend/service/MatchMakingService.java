@@ -17,4 +17,7 @@ public class MatchMakingService {
     public void joinQueue(String userName, Long points){
         redisTemplate.opsForZSet().add(QUEUE_KEY,userName, points);
     }
+    public void leaveQueue(String userName){
+        redisTemplate.opsForZSet().remove(QUEUE_KEY, userName);
+    }
 }

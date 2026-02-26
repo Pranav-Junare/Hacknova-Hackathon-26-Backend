@@ -20,23 +20,19 @@ public class UserService {
         return userDetails;
     }
 
-    public void userRegistrationAuth(String userName, String nickName, String userEmail, String password){
+    public void userRegistrationAuth(UserDetails userDetails) {
 
-        UserDetails userDetails=new UserDetails();
+        // 1. Validate the incoming data
+        if(userDB.existsByUsername(userDetails.getUsername())) throw new IllegalStateException("Username already taken, use another");
+        if (!isEmail(userDetails.getUserEmail())) throw new IllegalStateException("Invalid email");
+        if(userDB.existsByUserEmail(userDetails.getUserEmail())) throw new IllegalStateException("Email already taken, login");
+        if(userDetails.getPassword().length() <= 3) throw new IllegalStateException("Password should be greater than 3 characters");
 
-        if(userDB.existsByUsername(userName)) throw new IllegalStateException("Username already taken, use another");
-        if (!isEmail(userEmail)) throw new IllegalStateException("Invalid email");
-        if(userDB.existsByUserEmail(userEmail)) throw new IllegalStateException("Email already taken, login");
-        if(nickName.length()<=3) throw new IllegalStateException("nickname should be greater than 3");
-        if(password.length()<=3) throw new IllegalStateException("password should be greater than 3");
+        // 2. Set system defaults
+        // (Pro-tip: 1200 is the standard mathematical starting point for Elo rating systems!)
+        userDetails.setPoints(1200L);
 
-        userDetails.setUsername(userName);
-        userDetails.setUserEmail(userEmail);
-        userDetails.setNickName(nickName);
-        userDetails.setPassword(password);
-
-        userDetails.setPoints(0L);
-
+        // 3. Save the fully assembled user to the database
         userDB.save(userDetails);
     }
 

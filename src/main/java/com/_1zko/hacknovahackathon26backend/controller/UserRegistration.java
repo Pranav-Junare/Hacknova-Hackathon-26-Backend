@@ -1,5 +1,6 @@
 package com._1zko.hacknovahackathon26backend.controller;
 
+import com._1zko.hacknovahackathon26backend.repo.UserDetails;
 import com._1zko.hacknovahackathon26backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,9 +17,9 @@ public class UserRegistration {
     private final UserService userService;
 
     @PostMapping("/registerUser")
-    public ResponseEntity<?> userRegister(@RequestParam String userName, @RequestParam String nickName, @RequestParam String userEmail, @RequestParam String password){
+    public ResponseEntity<?> userRegister(UserDetails userDetails){
         try{
-            userService.userRegistrationAuth(userName,nickName,userEmail,password);
+            userService.userRegistrationAuth(userDetails);
 
             return ResponseEntity.ok(Map.of("message","Registration successful"));
         }
