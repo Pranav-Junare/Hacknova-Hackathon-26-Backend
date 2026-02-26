@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MatchMakingService {
 
-    private StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private static final String QUEUE_KEY="matchmaking_queue";
 
     // Call this when the user clicks "Find Match"
