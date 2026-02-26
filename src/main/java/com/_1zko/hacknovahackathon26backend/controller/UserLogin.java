@@ -5,6 +5,7 @@ import com._1zko.hacknovahackathon26backend.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -13,12 +14,12 @@ public class UserLogin {
 
     private final UserService userService;
 
-    @PostMapping("loginUser")
-    public String userLogin(String email, String password, HttpSession session){
+    @PostMapping("/loginUser")
+    public String userLogin(@RequestParam String email, @RequestParam String password, HttpSession session){
         try{
             UserDetails curUser=userService.userLoginAuth(email, password);
             session.setAttribute("currentUser", curUser);
-            return "Successful login"+curUser.getNickName();
+            return "Successful login, "+curUser.getNickName();
         }
 
         catch (IllegalStateException e){
