@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -46,25 +47,30 @@ public class Matchmaker {
 
         if(removedCount!=null && removedCount==2){
             String roomId= UUID.randomUUID().toString();
+            String roomKey="room:"+roomId;
             redisTemplate.opsForHash().put("room:" + roomId,p1, "connected");
             redisTemplate.opsForHash().put("room:" + roomId,p2, "connected");
+
+//            Destory the room after 1 hr
+            redisTemplate.expire(roomKey, 1, TimeUnit.HOURS);
 
 //            Websockets req from here
             broadcastMatch(p1,p2,roomId);
         }
     }
+
     private void broadcastMatch(String p1, String p2, String roomId) {
 
-        Map<String, String> payload=new HashMap<>();
-        payload.put("roomId", roomId);
-        payload.put("status","MATCH_FOUND");
+        Map<String, String> details=new HashMap<>();
+        details.put("roomId", roomId);
+        details.put("status","MATCH_FOUND");
 
-        Map<String,String>p1payload = new HashMap<>(payload);
-        p1payload.put("opponent",p2);
-        Map<String,String>p2payload = new HashMap<>(payload);
-        p2payload.put("opponent",p1);
+        Map<String,String>p1details = new HashMap<>(details);
+        p1details.put("opponent",p2);
+        Map<String,String>p2details = new HashMap<>(details);
+        p2details.put("opponent",p1);
 
-        messagingTemplate.convertAndSend("/room/match/"+p1,p1payload);
-        messagingTemplate.convertAndSend("/room/match/"+p2,p2payload);
+        messagingTemplate.convertAndSend("/room/match/"+p1,p1details);
+        messagingTemplate.convertAndSend("/room/match/"+p2,p2details);
     }
 }

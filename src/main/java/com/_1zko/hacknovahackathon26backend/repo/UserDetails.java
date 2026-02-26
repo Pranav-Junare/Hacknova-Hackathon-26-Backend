@@ -15,7 +15,6 @@ public class UserDetails {
     private Long uid;
 
     private String username;
-    private String nickName;
     private String userEmail;
     private String password;
     private Long points;
