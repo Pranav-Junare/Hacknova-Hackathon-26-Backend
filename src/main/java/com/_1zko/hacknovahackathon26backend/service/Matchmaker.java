@@ -7,10 +7,7 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -55,5 +52,19 @@ public class Matchmaker {
 //            Websockets req from here
             broadcastMatch(p1,p2,roomId);
         }
+    }
+    private void broadcastMatch(String p1, String p2, String roomId) {
+
+        Map<String, String> payload=new HashMap<>();
+        payload.put("roomId", roomId);
+        payload.put("status","MATCH_FOUND");
+
+        Map<String,String>p1payload = new HashMap<>(payload);
+        p1payload.put("opponent",p2);
+        Map<String,String>p2payload = new HashMap<>(payload);
+        p2payload.put("opponent",p1);
+
+        messagingTemplate.convertAndSend("/match/"+p1,p1payload);
+        messagingTemplate.convertAndSend("/match/"+p2,p2payload);
     }
 }
