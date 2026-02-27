@@ -30,7 +30,7 @@ public class UserService {
 
         // 2. Set system defaults
         // (Pro-tip: 1200 is the standard mathematical starting point for Elo rating systems!)
-        userDetails.setPoints(1200L);
+        userDetails.setPoints(1000L);
 
         // 3. Save the fully assembled user to the database
         userDB.save(userDetails);

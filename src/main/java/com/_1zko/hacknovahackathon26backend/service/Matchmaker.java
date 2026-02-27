@@ -24,17 +24,22 @@ public class Matchmaker {
         Set<ZSetOperations.TypedTuple<String>> players=redisTemplate.opsForZSet().rangeWithScores(QUEUE_KEY,0,100);
         if(players==null||players.size()<2) return;
 
+        System.out.println("🔍 Matchmaker checking " + players.size() + " players...");
         List<ZSetOperations.TypedTuple<String>> playerList=new ArrayList<>(players);
+
         for(int i=0;i<playerList.size()-1;i++){
             ZSetOperations.TypedTuple<String> p1=playerList.get(i);
             ZSetOperations.TypedTuple<String> p2=playerList.get(i+1);
 
             if (p1.getScore()!=null && p2.getScore()!=null){
+                double diff = Math.abs(p1.getScore() - p2.getScore());
+                System.out.println("Comparing: " + p1.getValue() + " vs " + p2.getValue() + " | Diff: " + diff);
+                if(diff<=POINT_TOLERANCE){
 
-                if(Math.abs(p1.getScore()-p2.getScore())<=POINT_TOLERANCE){
+                    System.out.println("✅ Match Found! Creating room...");
+
                     String player1=p1.getValue();
                     String player2=p2.getValue();
-
                     createMatchIfSecured(player1,player2);
 
                     i++;

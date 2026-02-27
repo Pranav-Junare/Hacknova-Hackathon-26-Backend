@@ -26,7 +26,8 @@ public class UserLogin {
             String password=payload.get("password");
             UserDetails curUser=userService.userLoginAuth(email, password);
             session.setAttribute("currentUser", curUser);
-            return ResponseEntity.ok(Map.of("message","Successfully loged in"));
+            return ResponseEntity.ok(Map.of("message","Successfully logged in",
+                                            "username",curUser.getUsername()));
         }
 
         catch (IllegalStateException e){

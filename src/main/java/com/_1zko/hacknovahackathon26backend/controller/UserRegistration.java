@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,7 +18,8 @@ public class UserRegistration {
     private final UserService userService;
 
     @PostMapping("/registerUser")
-    public ResponseEntity<?> userRegister(UserDetails userDetails){
+    // 2. ADD @RequestBody RIGHT HERE
+    public ResponseEntity<?> userRegister(@RequestBody UserDetails userDetails){
         try{
             userService.userRegistrationAuth(userDetails);
 
