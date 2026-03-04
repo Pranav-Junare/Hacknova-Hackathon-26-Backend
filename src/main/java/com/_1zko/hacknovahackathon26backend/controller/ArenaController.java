@@ -1,7 +1,7 @@
 package com._1zko.hacknovahackathon26backend.controller;
 
-import com._1zko.hacknovahackathon26backend.repo.UserDB;
-import com._1zko.hacknovahackathon26backend.repo.UserDetails;
+import com._1zko.hacknovahackathon26backend.repo.*;
+import com._1zko.hacknovahackathon26backend.service.JudgeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -19,6 +19,8 @@ public class ArenaController {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final UserDB userDB;
     private final RedisTemplate<String, String> redisTemplate;
+    private final QuestionRepository questionRepo;
+    private final JudgeService judgeService;
 
     @MessageMapping("/arena/submit")
     public void receiveCodeFromPlayer(@Payload Map<String,String> payload){
@@ -26,26 +28,34 @@ public class ArenaController {
         String playerId = payload.get("playerId");
         String currStatus = payload.get("status");
         String code = payload.get("code");
-
-        // --- NEW: GRAB THE MODE FROM REACT! ---
         String mode = payload.getOrDefault("mode", "dsa");
+
+        // Grab the Question ID!
+        String questionIdStr = payload.get("questionId");
 
         System.out.println("⚙️ Received status [" + currStatus + "] from " + playerId + " in room " + roomId + " (Mode: " + mode + ")");
 
-        // 1. Broadcast the current status to the opponent
         Map<String,String> statusUpdate = new HashMap<>();
         statusUpdate.put("type", "Opponent Status");
         statusUpdate.put("playerId", playerId);
         statusUpdate.put("status", currStatus);
-
         simpMessagingTemplate.convertAndSend("/room/arena/" + roomId, statusUpdate);
 
-        // 2. THE DUAL JUDGE LOGIC
         if("SUBMITTED".equals(currStatus)){
             System.out.println("🧪 Evaluating " + mode + " submission for " + playerId + "...");
 
-            // Pass the mode into the evaluation function!
-            boolean passedAllTests = evaluateSubmission(code, mode);
+            boolean passedAllTests = false;
+
+            // Fetch Question & Evaluate
+            if (questionIdStr != null) {
+                Long qId = Long.parseLong(questionIdStr);
+                Question question = questionRepo.findById(qId).orElse(null);
+                if (question != null) {
+                    passedAllTests = evaluateSubmission(code, mode, question);
+                }
+            } else if ("design".equals(mode)) {
+                passedAllTests = evaluateSubmission(code, mode, null);
+            }
 
             Map<String,String> finalResult = new HashMap<>();
             finalResult.put("type", "Game Over");
@@ -55,6 +65,7 @@ public class ArenaController {
                 finalResult.put("status", "VICTORY");
                 System.out.println("🏆 " + playerId + " WON THE " + mode.toUpperCase() + " MATCH!");
 
+                // 🔥 FIX IS HERE: Pass 'mode' to updateDynamicElo!
                 updateDynamicElo(playerId, roomId);
 
                 simpMessagingTemplate.convertAndSend("/room/arena/" + roomId, finalResult);
@@ -63,36 +74,27 @@ public class ArenaController {
             } else {
                 finalResult.put("status", "FAILED");
                 System.out.println("❌ " + playerId + "'s " + mode + " submission failed.");
-
                 simpMessagingTemplate.convertAndSend("/room/arena/" + roomId, finalResult);
             }
         }
     }
 
-    // --- THE DUAL HACKATHON MOCK COMPILER ---
-    private boolean evaluateSubmission(String code, String mode) {
+    private boolean evaluateSubmission(String code, String mode, Question question) {
         if (code == null) return false;
 
         if ("dsa".equals(mode)) {
-            // DSA Mode: Grade the C++ logic
-            String strippedCode = code.replaceAll("\\s+", "");
-            return strippedCode.contains("return{0,1}") ||
-                    strippedCode.contains("return[0,1]") ||
-                    strippedCode.contains("returnvector<int>{0,1}");
+            if (question == null) return false;
+            return judgeService.runDsaTest(code, question);
         }
         else if ("design".equals(mode)) {
-            // System Design Mode: Grade the React Flow JSON
-            // Check if they deployed a Load Balancer, Server, Database, and wired them up
             return code.contains("Load Balancer") &&
                     code.contains("Server") &&
                     code.contains("Database") &&
-                    code.contains("source"); // "source" proves they drew a wire between nodes
+                    code.contains("source");
         }
-
         return false;
     }
 
-    // --- DYNAMIC SPEED ELO REMAINS UNCHANGED ---
     private void updateDynamicElo(String winnerUsername, String roomId) {
         String roomKey = "room:" + roomId;
         String p1 = (String) redisTemplate.opsForHash().get(roomKey, "player1");
