@@ -70,7 +70,7 @@ public class Matchmaker {
             redisTemplate.opsForHash().put(roomKey, "player2", p2);
             redisTemplate.opsForHash().put(roomKey, "startTime", String.valueOf(System.currentTimeMillis()));
             redisTemplate.opsForHash().put(roomKey, "questionId", qId); // Save it to Redis too!
-
+            redisTemplate.opsForHash().put(roomKey, "mode", mode);// from claud code
             redisTemplate.expire(roomKey, 1, TimeUnit.HOURS);
 
             // 🔥 3. PASS THE QUESTION ID TO THE BROADCASTER

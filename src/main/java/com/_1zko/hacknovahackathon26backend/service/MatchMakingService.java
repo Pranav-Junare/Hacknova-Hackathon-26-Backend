@@ -1,9 +1,7 @@
 package com._1zko.hacknovahackathon26backend.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.support.SimpleTriggerContext;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,13 +9,17 @@ import org.springframework.stereotype.Service;
 public class MatchMakingService {
 
     private final StringRedisTemplate redisTemplate;
-    private static final String QUEUE_KEY="matchmaking_queue";
+    private String mode;
 
-    // Call this when the user clicks "Find Match"
-    public void joinQueue(String userName, Long points){
-        redisTemplate.opsForZSet().add(QUEUE_KEY,userName, points);
+    // Updated to handle mode-based queues (queue:dsa or queue:design)
+    public void joinQueue(String userName, Long points) {
+        String queueKey = "queue:" + (mode != null ? mode : "dsa");
+        redisTemplate.opsForZSet().add(queueKey, userName, points);
     }
-    public void leaveQueue(String userName){
-        redisTemplate.opsForZSet().remove(QUEUE_KEY, userName);
+
+    // Updated to remove user from all possible queues to prevent "ghost" entries
+    public void leaveQueue(String userName) {
+        redisTemplate.opsForZSet().remove("queue:dsa", userName);
+        redisTemplate.opsForZSet().remove("queue:design", userName);
     }
 }

@@ -29,11 +29,27 @@ public class ArenaController {
         String currStatus = payload.get("status");
         String code = payload.get("code");
         String mode = payload.getOrDefault("mode", "dsa");
-
-        // Grab the Question ID!
         String questionIdStr = payload.get("questionId");
 
-        System.out.println("⚙️ Received status [" + currStatus + "] from " + playerId + " in room " + roomId + " (Mode: " + mode + ")");
+        System.out.println("⚙️ Received status [" + currStatus + "] from " + playerId + " in room " + roomId);
+
+        // --- FORFEIT HANDLER ---
+        if ("FORFEIT".equals(currStatus)) {
+            String roomKey = "room:" + roomId;
+            String p1 = (String) redisTemplate.opsForHash().get(roomKey, "player1");
+            String p2 = (String) redisTemplate.opsForHash().get(roomKey, "player2");
+            if (p1 == null || p2 == null) return;
+            String winnerUsername = playerId.equals(p1) ? p2 : p1;
+            updateDynamicElo(winnerUsername, roomId);
+            Map<String, String> forfeitResult = new HashMap<>();
+            forfeitResult.put("type", "Game Over");
+            forfeitResult.put("playerId", winnerUsername);
+            forfeitResult.put("status", "VICTORY");
+            forfeitResult.put("reason", "FORFEIT");
+            simpMessagingTemplate.convertAndSend("/room/arena/" + roomId, forfeitResult);
+            redisTemplate.delete("room:" + roomId);
+            return;
+        }
 
         Map<String,String> statusUpdate = new HashMap<>();
         statusUpdate.put("type", "Opponent Status");
@@ -43,10 +59,8 @@ public class ArenaController {
 
         if("SUBMITTED".equals(currStatus)){
             System.out.println("🧪 Evaluating " + mode + " submission for " + playerId + "...");
-
             boolean passedAllTests = false;
 
-            // Fetch Question & Evaluate
             if (questionIdStr != null) {
                 Long qId = Long.parseLong(questionIdStr);
                 Question question = questionRepo.findById(qId).orElse(null);
@@ -63,34 +77,44 @@ public class ArenaController {
 
             if (passedAllTests) {
                 finalResult.put("status", "VICTORY");
-                System.out.println("🏆 " + playerId + " WON THE " + mode.toUpperCase() + " MATCH!");
-
-                // 🔥 FIX IS HERE: Pass 'mode' to updateDynamicElo!
                 updateDynamicElo(playerId, roomId);
-
                 simpMessagingTemplate.convertAndSend("/room/arena/" + roomId, finalResult);
                 redisTemplate.delete("room:" + roomId);
-                System.out.println("🧹 Match Over! Deleted room " + roomId + " from Redis RAM.");
             } else {
                 finalResult.put("status", "FAILED");
-                System.out.println("❌ " + playerId + "'s " + mode + " submission failed.");
                 simpMessagingTemplate.convertAndSend("/room/arena/" + roomId, finalResult);
             }
         }
     }
 
+    private void handleForfeit(String forfeiterId, String roomId) {
+        String roomKey = "room:" + roomId;
+        String p1 = (String) redisTemplate.opsForHash().get(roomKey, "player1");
+        String p2 = (String) redisTemplate.opsForHash().get(roomKey, "player2");
+
+        if (p1 == null || p2 == null) return;
+
+        String winnerId = forfeiterId.equals(p1) ? p2 : p1;
+        updateDynamicElo(winnerId, roomId);
+
+        Map<String, String> forfeitMsg = new HashMap<>();
+        forfeitMsg.put("type", "Game Over");
+        forfeitMsg.put("status", "VICTORY");
+        forfeitMsg.put("playerId", winnerId);
+        forfeitMsg.put("reason", "FORFEIT");
+
+        simpMessagingTemplate.convertAndSend("/room/arena/" + roomId, forfeitMsg);
+        redisTemplate.delete(roomKey);
+    }
+
     private boolean evaluateSubmission(String code, String mode, Question question) {
         if (code == null) return false;
-
         if ("dsa".equals(mode)) {
             if (question == null) return false;
             return judgeService.runDsaTest(code, question);
         }
         else if ("design".equals(mode)) {
-            return code.contains("Load Balancer") &&
-                    code.contains("Server") &&
-                    code.contains("Database") &&
-                    code.contains("source");
+            return code.contains("Load Balancer") && code.contains("Server") && code.contains("Database");
         }
         return false;
     }
@@ -104,7 +128,6 @@ public class ArenaController {
         if (p1 == null || p2 == null || startTimeStr == null) return;
 
         String loserUsername = winnerUsername.equals(p1) ? p2 : p1;
-
         UserDetails winner = userDB.findByUsername(winnerUsername);
         UserDetails loser = userDB.findByUsername(loserUsername);
 
@@ -112,22 +135,14 @@ public class ArenaController {
 
         long startTime = Long.parseLong(startTimeStr);
         long timeTakenSeconds = (System.currentTimeMillis() - startTime) / 1000;
-
         double speedBonus = Math.max(0, (1800.0 - timeTakenSeconds) / 1800.0) * 30.0;
         double kFactor = 20.0 + speedBonus;
-
         double expectedWinner = 1.0 / (1.0 + Math.pow(10, (loser.getPoints() - winner.getPoints()) / 400.0));
-        double expectedLoser = 1.0 / (1.0 + Math.pow(10, (winner.getPoints() - loser.getPoints()) / 400.0));
-
         long winnerGain = Math.round(kFactor * (1.0 - expectedWinner));
-        long loserLoss = Math.round(kFactor * (0.0 - expectedLoser));
 
         winner.setPoints(winner.getPoints() + winnerGain);
-        loser.setPoints(Math.max(0, loser.getPoints() + loserLoss));
-
+        loser.setPoints(Math.max(0, loser.getPoints() - winnerGain));
         userDB.save(winner);
         userDB.save(loser);
-
-        System.out.println("📈 ELO UPDATE | " + winnerUsername + " +" + winnerGain + " | " + loserUsername + " " + loserLoss + " (Time: " + timeTakenSeconds + "s)");
     }
 }
